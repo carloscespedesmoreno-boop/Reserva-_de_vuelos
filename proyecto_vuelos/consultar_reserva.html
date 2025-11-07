@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consultar estado de reserva</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="header">
+    <div class="header-content" style="justify-content:space-between;max-width:1200px;margin:0 auto;padding:0 1rem;">
+      <div style="display:flex;align-items:center;gap:0.75rem;">
+        <i class="fas fa-clipboard-check"></i>
+        <h1>Consultar estado de reserva</h1>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <a href="index.html" class="btn-small" style="text-decoration:none;"><i class="fas fa-plane-departure"></i> Nueva reserva</a>
+        <a href="login.html" class="btn-small" style="text-decoration:none;"><i class="fas fa-right-to-bracket"></i> Iniciar sesión</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="form-card" style="max-width:640px;margin:0 auto;">
+      <div class="form-group">
+        <label for="doc">Número de documento</label>
+        <div class="input-icon-wrapper">
+          <i class="fas fa-id-card input-icon"></i>
+          <input type="text" id="doc" placeholder="Cédula o pasaporte" required />
+        </div>
+      </div>
+      <button class="btn" id="btn-consultar"><i class="fas fa-search"></i> Consultar</button>
+    </div>
+
+    <div class="table-wrapper" style="margin-top:1.5rem;display:none;" id="resultado-wrapper">
+      <table id="tabla-reservas">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Pasajero</th>
+            <th>Origen</th>
+            <th>Destino</th>
+            <th>Fecha Ida</th>
+            <th>Fecha Vuelta</th>
+            <th>Personas</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div id="mensaje-vacio" style="display:none;padding:1rem;text-align:center;color:#4a5568;">No se encontraron reservas para este documento.</div>
+    </div>
+  </div>
+
+  <script>
+    function mostrarToast(tipo, mensaje) {
+      const toast = document.createElement('div');
+      toast.className = `toast ${tipo}`;
+      toast.innerHTML = `<i class="fas ${tipo === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i><span>${mensaje}</span>`;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function formatearFecha(fecha) {
+      if (!fecha) return '-';
+      const f = new Date(fecha);
+      if (isNaN(f.getTime())) return fecha;
+      return f.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    document.getElementById('btn-consultar').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      if (btn.disabled) return;
+      const doc = document.getElementById('doc').value.trim();
+      if (!doc || doc.length < 5) {
+        mostrarToast('error', 'Ingresa un documento válido (mínimo 5 caracteres)');
+        return;
+      }
+      try {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Consultando...';
+        const resp = await fetch(`./api/consulta_reservas.php?documento=${encodeURIComponent(doc)}`);
+        let data;
+        let rawText = '';
+        try { data = await resp.json(); } catch (e) { try { rawText = await resp.text(); } catch(_){} }
+        if (!resp.ok) {
+          const msg = (data && data.error) ? data.error : (rawText || 'Error desconocido');
+          mostrarToast('error', msg);
+          return;
+        }
+        const tbody = document.querySelector('#tabla-reservas tbody');
+        const wrapper = document.getElementById('resultado-wrapper');
+        const vacio = document.getElementById('mensaje-vacio');
+        tbody.innerHTML = '';
+        wrapper.style.display = 'block';
+        if (!data || data.length === 0) {
+          vacio.style.display = 'block';
+          return;
+        } else {
+          vacio.style.display = 'none';
+        }
+        data.forEach(r => {
+          const tr = document.createElement('tr');
+          tr.className = `estado-${r.estado}`;
+          tr.innerHTML = `
+            <td>${r.id_reservas}</td>
+            <td>${r.nombre_pasajero}</td>
+            <td>${r.origen}</td>
+            <td>${r.destino}</td>
+            <td>${formatearFecha(r.fecha_ida)}</td>
+            <td>${formatearFecha(r.fecha_vuelta)}</td>
+            <td>${r.personas}</td>
+            <td class="estado-cell">${r.estado}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        mostrarToast('error', 'No se pudo conectar con el servidor');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-search"></i> Consultar';
+      }
+    });
+  </script>
+</body>
+</html>

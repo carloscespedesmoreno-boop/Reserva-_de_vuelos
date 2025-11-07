@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ver Reservas</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="header">
+    <div class="header-content" style="justify-content:space-between;max-width:1200px;margin:0 auto;padding:0 1rem;">
+      <div style="display:flex;align-items:center;gap:1rem;">
+        <i class="fas fa-list"></i>
+        <h1>Ver Reservas</h1>
+      </div>
+      <div id="header-actions">
+        <a href="./login.html" style="text-decoration:none;">
+          <button class="btn-small approve" style="border:none;">
+            <i class="fas fa-right-to-bracket"></i> Iniciar sesión
+          </button>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="table-wrapper">
+    <table id="tabla-reservas">
+      <thead>
+        <tr id="thead-row">
+          <th>ID</th>
+          <th>Origen</th>
+          <th>Destino</th>
+          <th>Fecha Ida</th>
+          <th>Fecha Vuelta</th>
+          <th>Personas</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- se llenará dinámicamente -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    let esAdmin = false;
+
+    async function verificarSesion() {
+      try {
+        const r = await fetch('./api/login.php', { credentials: 'same-origin' });
+        if (!r.ok) return;
+        const info = await r.json();
+        esAdmin = info?.rol === 'admin';
+
+        // Actualizar encabezado (login/logout) de forma simple
+        const header = document.getElementById('header-actions');
+        if (info?.loggedIn) {
+          header.innerHTML = `
+            <span style="font-weight:500;opacity:.9;margin-right:.5rem;">Hola, ${info.username || ''} ${esAdmin ? '<span style="font-size:0.8rem;background:#48bb78;padding:0.2rem 0.5rem;border-radius:0.3rem;margin-left:0.5rem;">Admin</span>' : ''}</span>
+            <button class="btn-small delete" id="btn-logout" style="border:none;">
+              <i class="fas fa-right-from-bracket"></i> Salir
+            </button>
+          `;
+          document.getElementById('btn-logout').addEventListener('click', async () => {
+            try { await fetch('./api/logout.php'); } catch {}
+            location.reload();
+          });
+        }
+
+        // Agregar columna Acciones si es admin
+        if (esAdmin) {
+          const theadRow = document.getElementById('thead-row');
+          if (theadRow && !theadRow.querySelector('th.acciones')) {
+            const th = document.createElement('th');
+            th.className = 'acciones';
+            th.textContent = 'Acciones';
+            theadRow.appendChild(th);
+          }
+        }
+      } catch {}
+    }
+
+    async function cargarReservas() {
+      try {
+  const resp = await fetch('./api/reservas.php', { credentials: 'same-origin' });
+        const reservas = await resp.json();
+        const tbody = document.querySelector('#tabla-reservas tbody');
+        tbody.innerHTML = '';
+
+        // Fallback: asegurar cabecera Acciones si es admin
+        if (esAdmin) {
+          const theadRow = document.getElementById('thead-row');
+          if (theadRow && !theadRow.querySelector('th.acciones')) {
+            const th = document.createElement('th');
+            th.className = 'acciones';
+            th.textContent = 'Acciones';
+            theadRow.appendChild(th);
+          }
+        }
+        reservas.forEach(r => {
+          const tr = document.createElement('tr');
+          tr.dataset.reservaId = r.id_reservas;
+          
+          // Aplicar clase según el estado
+          tr.className = `estado-${r.estado}`;
+          
+          // Función para formatear la fecha
+          const formatearFecha = (fecha) => {
+            if (!fecha) return '-';
+            const f = new Date(fecha);
+            return f.toLocaleDateString('es-ES', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric'
+            });
+          };
+
+          let accionesHtml = '';
+          if (esAdmin) {
+            if (r.estado === 'pendiente') {
+              accionesHtml = `
+                <td class="action-buttons">
+                  <button class="btn-small approve" onclick="cambiarEstado(this, ${r.id_reservas}, 'aprobada')"><i class='fas fa-check'></i>Aprobar</button>
+                  <button class="btn-small cancel" onclick="cambiarEstado(this, ${r.id_reservas}, 'cancelada')"><i class='fas fa-times'></i>Cancelar</button>
+                  <button class="btn-small delete" onclick="eliminarReserva(this, ${r.id_reservas})"><i class='fas fa-trash'></i>Eliminar</button>
+                </td>`;
+            } else {
+              accionesHtml = `
+                <td class="action-buttons">
+                  <span class="estado-final">${r.estado === 'aprobada' ? '<i class="fas fa-check-circle"></i>Aprobada' : '<i class="fas fa-times-circle"></i>Cancelada'}</span>
+                  <button class="btn-small delete" onclick="eliminarReserva(this, ${r.id_reservas})"><i class='fas fa-trash'></i>Eliminar</button>
+                </td>`;
+            }
+          }
+
+          tr.innerHTML = `
+            <td>${r.id_reservas}</td>
+            <td>${r.origen}</td>
+            <td>${r.destino}</td>
+            <td>${formatearFecha(r.fecha_ida)}</td>
+            <td>${formatearFecha(r.fecha_vuelta)}</td>
+            <td>${r.personas}</td>
+            <td class="estado-cell">${r.estado}</td>
+            ${accionesHtml}
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch(err) {
+        mostrarMensajeError('Error al cargar reservas');
+      }
+    }
+
+    async function cambiarEstado(btnElement, id, estado) {
+      try {
+        const actionButtons = btnElement.parentElement.querySelectorAll('button');
+        actionButtons.forEach(btn => { btn.disabled = true; btn.style.opacity = '0.5'; });
+        const originalContent = btnElement.innerHTML;
+        btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+
+        const resp = await fetch(`./api/reserva_id.php?id=${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ estado }),
+          credentials: 'same-origin'
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+          mostrarMensajeExito('Estado actualizado correctamente');
+          const fila = btnElement.closest('tr');
+          const estadoCell = fila.querySelector('.estado-cell');
+          estadoCell.textContent = estado;
+          const actionCell = btnElement.parentElement;
+          actionCell.innerHTML = `
+            <span class="estado-final">${estado === 'aprobada' ? '<i class="fas fa-check-circle"></i>Aprobada' : '<i class="fas fa-times-circle"></i>Cancelada'}</span>
+            <button class="btn-small delete" onclick="eliminarReserva(this, ${id})"><i class="fas fa-trash"></i>Eliminar</button>
+          `;
+          fila.className = `estado-${estado}`;
+        } else if (resp.status === 401) {
+          mostrarMensajeError('No autorizado. Inicia sesión como administrador.');
+        } else {
+          mostrarMensajeError('Error: ' + (data.error || 'No se pudo actualizar'));
+          const actionButtons2 = btnElement.parentElement.querySelectorAll('button');
+          actionButtons2.forEach(btn => { btn.disabled = false; btn.style.opacity = '1'; });
+          btnElement.innerHTML = originalContent;
+        }
+      } catch (err) {
+        mostrarMensajeError('Error al conectar con el servidor');
+      }
+    }
+
+    async function eliminarReserva(btnElement, id) {
+      if (!confirm('¿Eliminar esta reserva?')) return;
+      try {
+        btnElement.disabled = true;
+        const original = btnElement.innerHTML;
+        btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Eliminando...';
+  const resp = await fetch(`./api/eliminar_reserva.php?id=${id}`, { method: 'DELETE', credentials: 'same-origin' });
+        const data = await resp.json();
+        if (resp.ok) {
+          mostrarMensajeExito('Reserva eliminada');
+          const fila = btnElement.closest('tr');
+          fila.style.animation = 'fadeOut 0.5s ease';
+          setTimeout(() => fila.remove(), 500);
+        } else if (resp.status === 401) {
+          mostrarMensajeError('No autorizado. Inicia sesión como administrador.');
+          btnElement.disabled = false;
+          btnElement.innerHTML = original;
+        } else {
+          mostrarMensajeError(data.error || 'No se pudo eliminar');
+          btnElement.disabled = false;
+          btnElement.innerHTML = original;
+        }
+      } catch (err) {
+        mostrarMensajeError('Error al conectar con el servidor');
+        btnElement.disabled = false;
+      }
+    }
+
+    // Exponer funciones globalmente para los onclick inline
+    window.cambiarEstado = cambiarEstado;
+    window.eliminarReserva = eliminarReserva;
+
+    function mostrarMensajeExito(mensaje) {
+      const toast = document.createElement('div');
+      toast.className = 'toast success';
+      toast.innerHTML = `
+        <i class="fas fa-check-circle"></i>
+        <span>${mensaje}</span>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function mostrarMensajeError(mensaje) {
+      const toast = document.createElement('div');
+      toast.className = 'toast error';
+      toast.innerHTML = `
+        <i class="fas fa-exclamation-circle"></i>
+        <span>${mensaje}</span>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Al cargar la página: primero sesión, luego reservas
+    (async () => { await verificarSesion(); await cargarReservas(); })();
+  </script>
+</body>
+</html>

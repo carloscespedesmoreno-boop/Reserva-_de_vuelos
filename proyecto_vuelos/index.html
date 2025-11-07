@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reserva tu vuelo</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+</head>
+<body>
+  <div class="header">
+    <div class="header-content" style="justify-content:space-between;max-width:1200px;margin:0 auto;padding:0 1rem;">
+      <div style="display:flex;align-items:center;gap:0.75rem;">
+        <i class="fas fa-plane-departure"></i>
+        <h1>Reserva tu vuelo</h1>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <a href="consultar_reserva.html" class="btn-small" style="text-decoration:none;"><i class="fas fa-clipboard-check"></i> Consultar reserva</a>
+        <a href="mis_reservas.php" id="link-mis-reservas" class="btn-small" style="display:none;text-decoration:none;"><i class="fas fa-ticket"></i> Mis reservas</a>
+        <a href="login.html" id="link-login" class="btn-small" style="text-decoration:none;"><i class="fas fa-right-to-bracket"></i> Iniciar sesión</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="form-card">
+    
+    <h2 style="text-align:center;margin-bottom:1.5rem;color:#2d3748;">Datos del pasajero</h2>
+    
+    <div class="form-group">
+      <label for="nombre_pasajero">Nombre completo</label>
+      <div class="input-icon-wrapper">
+        <i class="fas fa-user input-icon"></i>
+        <input type="text" id="nombre_pasajero" placeholder="Ej: Juan Pérez García" required>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="documento_pasajero">Número de documento</label>
+      <div class="input-icon-wrapper">
+        <i class="fas fa-id-card input-icon"></i>
+        <input type="text" id="documento_pasajero" placeholder="Cédula o pasaporte" required>
+      </div>
+    </div>
+
+    <h2 style="text-align:center;margin:2rem 0 1.5rem;color:#2d3748;">Detalles del vuelo</h2>
+
+    <div class="toggle-buttons">
+      <div>
+        <input type="radio" id="ida-vuelta" name="viaje" checked>
+        <label for="ida-vuelta">Ida y vuelta</label>
+      </div>
+      <div>
+        <input type="radio" id="solo-ida" name="viaje">
+        <label for="solo-ida">Solo ida</label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="origen">Origen</label>
+      <input type="text" id="origen" placeholder="ej: Bogotá" required>
+    </div>
+
+    <div class="form-group">
+      <label for="destino">Destino</label>
+      <input type="text" id="destino" placeholder="ej: Armenia" required>
+    </div>
+
+    <div class="form-group">
+      <label for="fecha-ida">Fecha de ida</label>
+      <div class="input-icon-wrapper">
+        <i class="fas fa-calendar-alt input-icon"></i>
+        <input type="text" id="fecha-ida" class="date-input" placeholder="Selecciona la fecha de ida" required>
+      </div>
+    </div>
+
+    <div class="form-group" id="fecha-vuelta-group">
+      <label for="fecha-vuelta">Fecha de vuelta</label>
+      <div class="input-icon-wrapper">
+        <i class="fas fa-calendar-alt input-icon"></i>
+        <input type="text" id="fecha-vuelta" class="date-input" placeholder="Selecciona la fecha de vuelta">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="personas">Personas</label>
+      <input type="number" id="personas" value="1" min="1" required>
+    </div>
+
+    <button class="btn" id="btn-reservar">Reservar</button>
+  </div>
+
+  <script>
+    const idaVuelta = document.getElementById('ida-vuelta');
+    const soloIda = document.getElementById('solo-ida');
+    const fechaVueltaGroup = document.getElementById('fecha-vuelta-group');
+    const fechaIdaInput = document.getElementById('fecha-ida');
+    const fechaVueltaInput = document.getElementById('fecha-vuelta');
+    const origenInput = document.getElementById('origen');
+    const destinoInput = document.getElementById('destino');
+    const nombrePasajero = document.getElementById('nombre_pasajero');
+    const documentoPasajero = document.getElementById('documento_pasajero');
+
+    // Función para validar que un texto no contenga números
+    function validarTextoSinNumeros(texto) {
+      return /^[a-záéíóúñüA-ZÁÉÍÓÚÑÜ\s]+$/.test(texto);
+    }    // Inicializar calendarios con Flatpickr
+    const fpIda = flatpickr('#fecha-ida', {
+      dateFormat: 'Y-m-d',
+      minDate: 'today',
+      locale: flatpickr.l10ns.es,
+      disableMobile: true,
+      nextArrow: '<i class="fas fa-chevron-right"></i>',
+      prevArrow: '<i class="fas fa-chevron-left"></i>'
+    });
+
+    const fpVuelta = flatpickr('#fecha-vuelta', {
+      dateFormat: 'Y-m-d',
+      minDate: 'today',
+      locale: flatpickr.l10ns.es,
+      disableMobile: true,
+      nextArrow: '<i class="fas fa-chevron-right"></i>',
+      prevArrow: '<i class="fas fa-chevron-left"></i>'
+    });
+
+    // Sincronizar la fecha mínima de vuelta con la fecha de ida
+    fpIda.config.onChange.push((selectedDates, dateStr) => {
+      const min = dateStr || 'today';
+      fpVuelta.set('minDate', min);
+      if (fpVuelta.selectedDates[0] && selectedDates[0] && fpVuelta.selectedDates[0] < selectedDates[0]) {
+        fpVuelta.setDate(selectedDates[0], true);
+        mostrarError(fechaVueltaInput, 'La fecha de vuelta debe ser posterior a la ida');
+      } else {
+        ocultarError(fechaVueltaInput);
+      }
+    });
+
+    // Validar campos de texto (ciudades)
+    origenInput.addEventListener('input', (e) => {
+      if (!validarTextoSinNumeros(e.target.value)) {
+        e.target.classList.add('error');
+        mostrarError(e.target, 'Solo se permiten letras');
+      } else {
+        e.target.classList.remove('error');
+        ocultarError(e.target);
+      }
+    });
+
+    destinoInput.addEventListener('input', (e) => {
+      if (!validarTextoSinNumeros(e.target.value)) {
+        e.target.classList.add('error');
+        mostrarError(e.target, 'Solo se permiten letras');
+      } else {
+        e.target.classList.remove('error');
+        ocultarError(e.target);
+      }
+    });
+
+    // Validar nombre del pasajero
+    nombrePasajero.addEventListener('input', (e) => {
+      if (!validarTextoSinNumeros(e.target.value)) {
+        e.target.classList.add('error');
+        mostrarError(e.target, 'Solo se permiten letras');
+      } else {
+        e.target.classList.remove('error');
+        ocultarError(e.target);
+      }
+    });
+
+    // Validación adicional por si el usuario edita manualmente (mobile)
+    fechaVueltaInput.addEventListener('change', () => {
+      const ida = fpIda.selectedDates[0];
+      const vuelta = fpVuelta.selectedDates[0];
+      if (ida && vuelta && vuelta < ida) {
+        fpVuelta.setDate(ida, true);
+        mostrarError(fechaVueltaInput, 'La fecha de vuelta debe ser posterior a la ida');
+      } else {
+        ocultarError(fechaVueltaInput);
+      }
+    });
+
+    function mostrarError(elemento, mensaje) {
+      // Si el input está dentro de un wrapper con icono, insertamos el error después del wrapper
+      const wrapper = elemento.closest('.input-icon-wrapper');
+      const anchor = wrapper || elemento;
+      let errorDiv = anchor.nextElementSibling;
+      if (!errorDiv || !errorDiv.classList.contains('error-message')) {
+        errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        anchor.parentNode.insertBefore(errorDiv, anchor.nextSibling);
+      }
+      errorDiv.textContent = mensaje;
+    }
+
+    function ocultarError(elemento) {
+      const wrapper = elemento.closest('.input-icon-wrapper');
+      const anchor = wrapper || elemento;
+      const errorDiv = anchor.nextElementSibling;
+      if (errorDiv && errorDiv.classList.contains('error-message')) {
+        errorDiv.remove();
+      }
+    }
+
+    function actualizarFechaVuelta() {
+      if (soloIda.checked) {
+        fechaVueltaGroup.style.display = 'none';
+        fechaVueltaInput.removeAttribute('required');
+        if (typeof fpVuelta !== 'undefined') fpVuelta.clear();
+      } else {
+        fechaVueltaGroup.style.display = 'block';
+        fechaVueltaInput.setAttribute('required', 'required');
+      }
+    }
+
+    // Inicial
+    actualizarFechaVuelta();
+
+    idaVuelta.addEventListener('change', actualizarFechaVuelta);
+    soloIda.addEventListener('change', actualizarFechaVuelta);
+
+    // Enviar la reserva al backend
+    document.getElementById('btn-reservar').addEventListener('click', async (e) => {
+      const btnReservar = e.target;
+      
+      // Evitar múltiples envíos
+      if (btnReservar.disabled) {
+        return;
+      }
+
+      // Validar datos del pasajero
+      if (!nombrePasajero.value.trim()) {
+        mostrarError(nombrePasajero, 'El nombre es requerido');
+        return;
+      }
+
+      if (!validarTextoSinNumeros(nombrePasajero.value)) {
+        mostrarError(nombrePasajero, 'El nombre no puede contener números');
+        return;
+      }
+
+      if (!documentoPasajero.value.trim()) {
+        mostrarError(documentoPasajero, 'El documento es requerido');
+        return;
+      }
+
+      if (documentoPasajero.value.trim().length < 5) {
+        mostrarError(documentoPasajero, 'El documento debe tener al menos 5 caracteres');
+        return;
+      }
+
+      // Validar todos los campos antes de enviar
+      if (!validarTextoSinNumeros(origenInput.value)) {
+        mostrarError(origenInput, 'El origen no puede contener números');
+        return;
+      }
+
+      if (!validarTextoSinNumeros(destinoInput.value)) {
+        mostrarError(destinoInput, 'El destino no puede contener números');
+        return;
+      }
+
+      const reserva = {
+        nombre_pasajero: nombrePasajero.value.trim(),
+        documento_pasajero: documentoPasajero.value.trim(),
+        origen: origenInput.value,
+        destino: destinoInput.value,
+        fecha_ida: fechaIdaInput.value,
+        fecha_vuelta: soloIda.checked ? null : fechaVueltaInput.value,
+        personas: document.getElementById('personas').value
+      };
+
+      if (!reserva.fecha_ida) {
+        mostrarError(fechaIdaInput, 'Por favor selecciona una fecha de ida');
+        return;
+      }
+
+      try {
+        // Deshabilitar el botón y cambiar su texto
+        btnReservar.disabled = true;
+        btnReservar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+
+        const resp = await fetch('./api/reservas.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reserva)
+        });
+        let data;
+        let rawText = '';
+        try {
+          data = await resp.json();
+        } catch (e) {
+          try { rawText = await resp.text(); } catch (_) {}
+        }
+        if (resp.ok) {
+          mostrarMensajeExito('¡Reserva realizada con éxito!');
+          // Mantener el botón deshabilitado y cambiar su texto
+          btnReservar.innerHTML = '<i class="fas fa-check"></i> Reserva Completada';
+          
+          // Limpiar el formulario
+          document.querySelectorAll('input').forEach(input => {
+            if (input.type === 'text' || input.type === 'date') {
+              input.value = '';
+            } else if (input.type === 'number') {
+              input.value = '1';
+            }
+          });
+          // Limpiar también los calendarios
+          fpIda.clear();
+          fpVuelta.clear();
+        } else {
+          const mensajeServidor = (data && data.error) ? data.error : (rawText ? rawText.slice(0, 200) : 'No se pudo reservar');
+          
+          // Verificar si es error de límite de reservas
+          if (mensajeServidor.includes('límite de') || mensajeServidor.includes('reservas activas')) {
+            mostrarMensajeAdvertencia(mensajeServidor);
+          } else {
+            mostrarMensajeError('Error: ' + mensajeServidor);
+          }
+          
+          // Reactivar el botón en caso de error
+          btnReservar.disabled = false;
+          btnReservar.innerHTML = 'Reservar';
+        }
+      } catch (err) {
+        mostrarMensajeError('Error al conectar con el servidor');
+        // Reactivar el botón en caso de error
+        btnReservar.disabled = false;
+        btnReservar.innerHTML = 'Reservar';
+      }
+    });
+
+    function mostrarMensajeExito(mensaje) {
+      const toast = document.createElement('div');
+      toast.className = 'toast success';
+      toast.innerHTML = `
+        <i class="fas fa-check-circle"></i>
+        <span>${mensaje}</span>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function mostrarMensajeError(mensaje) {
+      const toast = document.createElement('div');
+      toast.className = 'toast error';
+      toast.innerHTML = `
+        <i class="fas fa-exclamation-circle"></i>
+        <span>${mensaje}</span>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function mostrarMensajeAdvertencia(mensaje) {
+      const toast = document.createElement('div');
+      toast.className = 'toast warning';
+      toast.innerHTML = `
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>${mensaje}</span>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 5000);
+    };
+
+    // Mostrar enlace "Mis reservas" si hay sesión iniciada
+    (async function verificarSesionYMostrarEnlaces() {
+      try {
+        const resp = await fetch('./api/login.php');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const linkMisReservas = document.getElementById('link-mis-reservas');
+        const linkLogin = document.getElementById('link-login');
+        if (data && data.loggedIn) {
+          if (linkMisReservas) linkMisReservas.style.display = 'inline-flex';
+          if (linkLogin) linkLogin.style.display = 'none';
+        }
+      } catch (e) {
+        // Silencioso: si falla, no mostramos el enlace
+      }
+    })();
+  </script>
+</body>
+</html>
